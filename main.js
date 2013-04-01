@@ -264,7 +264,7 @@ function Polygon (pointList) {
         context.closePath();
         context.stroke();
         context.fill();
-        // this.points()[0].draw(context);
+        // this.points()[0].draw(context,"blue");
     };
 }
 
@@ -288,6 +288,7 @@ var mode = "generatePoints";
 var ticker = 0;
 var tweenPercent = 0;
 var kernelPoint = undefined;
+var numPoints = 20;
 var mousePoint = new Point(0,0);
 
 window.addEventListener('load', function() {
@@ -307,15 +308,15 @@ window.addEventListener('load', function() {
     randomPoints = []
     randomPointTargets = []
     sumX = 0, sumY = 0;
-    for (i=0;i<30;i++) {
+    for (i=0;i<numPoints;i++) {
         randX = Math.random()*600;
         randY = Math.random()*600;
         sumX += randX;
         sumY += randY;
         randomPointTargets.push(new Point(randX,randY));
     }
-    avgX = sumX/30;
-    avgY = sumY/30;
+    avgX = sumX/numPoints;
+    avgY = sumY/numPoints;
     avgPoint = new Point(avgX,avgY);
     kernelPoint = avgPoint;
     randomPointTargets.sort(function (a, b) {
@@ -330,6 +331,7 @@ function keyPress(e) {
     points.push(points.shift());
     pointsPolygon = new Polygon(points);
     visPolygon = pointsPolygon.visibleFrom(visFromPoint);
+    angle = 1.5;
 }
 
 function getEventXCoord(ev){
@@ -416,14 +418,22 @@ function update () {
             mode = "animateVisPolygon"
             angle = 1.5;
             maxXPoint = undefined;
+            indexOfMax = -1;
             points = randomPoints;
             for (i=0;i<pointsPolygon.points().length;i++) {
                 if (maxXPoint == undefined || pointsPolygon.points()[i].x > maxXPoint.x) {
                     maxXPoint = pointsPolygon.points()[i];
+                    indexOfMax = i;
                 }
             }
+            // maxXPoint = points[Math.floor(Math.random()*points.length)];
             theta = maxXPoint.thetaTo(kernelPoint);
             visFromPoint = new Point(maxXPoint.x-Math.cos(theta)*2,maxXPoint.y-Math.sin(theta)*2);
+            while (points[0] != maxXPoint) {
+                points.push(points.shift());
+            }
+            angle = points[1].thetaTo(points[0]);
+            console.log(angle*180/Math.PI);
             visPolygon = pointsPolygon.visibleFrom(visFromPoint);
         }
     } else if (mode == "animateVisPolygon") {
