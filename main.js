@@ -1,6 +1,31 @@
+var CP = window.CanvasRenderingContext2D && CanvasRenderingContext2D.prototype;
+if (CP.lineTo) {
+    CP.dashedLine = function(x, y, x2, y2, da) {
+        if (!da) da = [10,5];
+        this.save();
+        var dx = (x2-x), dy = (y2-y);
+        var len = Math.sqrt(dx*dx + dy*dy);
+        var rot = Math.atan2(dy, dx);
+        this.translate(x, y);
+        this.moveTo(0, 0);
+        this.rotate(rot);       
+        var dc = da.length;
+        var di = 0, draw = true;
+        x = 0;
+        while (len > x) {
+            x += da[di++ % dc];
+            if (x > len) x = len;
+            draw ? this.lineTo(x, 0): this.moveTo(x, 0);
+            draw = !draw;
+        }       
+        this.restore();
+    }
+}
+
 function Point (x, y) {
     this.x = x;
     this.y = y;
+    this.isSteiner = false;
 
     this.distance = function (p) {
         return Math.sqrt(Math.pow(p.x - this.x) + Math.pow(p.y - this.y));
@@ -55,6 +80,19 @@ function Point (x, y) {
         context.fillStyle = fillStyle;
         context.fill();
     };
+
+    this.canSee = function (p,pgon) {
+        s = new LineSegment(this,p);
+        intersections = s.polygonIntersections(pgon);
+        if (intersections.length == 0) return true;
+        intersections.sort(function (p1, p2) {
+            return p1.distance(this)-p2.distance(this);
+        });
+        if (intersections[0].distance(p) < 0.005) {
+            return true;
+        }
+        return false;
+    }
 
 }
 Vector = Point;
@@ -135,6 +173,18 @@ function LineSegment (p1, p2) {
                         this.p2.x - this.p1.x,
                         -1*((this.p1.x - this.p2.x) * this.p1.y + (this.p2.y - this.p1.y) * this.p1.x));
     };
+
+    this.polygonIntersections = function (pgon) {
+        s = this;
+        return pgon.edges().map(function (e) {
+            return s.segmentIntersection(e);
+        }).filter(function (x) { return x != undefined })
+    }
+
+    this.toRay = function () {
+        theta = this.p1.thetaTo(this.p2);
+        return new Ray(this.p1,theta);
+    }
 
     this.containsPoint = function (p) {
         // x(t) = (p1.x+(p2.x-p1.x)*t)
@@ -223,7 +273,9 @@ function Polygon (pointList) {
                         condition = function (pp) {
                             e = new LineSegment(pp,pl[(i+2)%pl.length]);
                             l = new LineSegment(p,t).toLine()
-                            return e.lineIntersection(l);
+                            newPoint = e.lineIntersection(l);
+                            if (newPoint) newPoint.isSteiner = true;
+                            return newPoint;
                         };
                     } 
                     newPoint = condition(point);
@@ -239,21 +291,20 @@ function Polygon (pointList) {
                         stack.pop();
                         newPoint = new LineSegment(stack[stack.length-1],stack[stack.length-2]).lineIntersection(l);
                     }
+                    newPoint.isSteiner = true;
                     stack.pop();
                     stack.push(newPoint);
                     stack.push(point);
-                    /*for (;i<pl.length-1;i++) {
-
-                    }*/
                 }
             }
         }
         return new Polygon(stack);
     };
 
-    this.draw = function (context, fillStyle) {
+    this.draw = function (context, fillStyle, lineStyle) {
         fillStyle = typeof fillStyle !== 'undefined' ? fillStyle : "rgba(0,255,0,0.1)";
-        context.strokeStyle = '#000'; //black
+        lineStyle = typeof lineStyle !== 'undefined' ? lineStyle : "#000";
+        context.strokeStyle = lineStyle
          context.fillStyle = fillStyle
         context.lineWidth = 4;
         context.beginPath();
@@ -433,17 +484,21 @@ function update () {
                 points.push(points.shift());
             }
             angle = points[1].thetaTo(points[0]);
-            console.log(angle*180/Math.PI);
+            if (angle < 0) angle += Math.PI*2;
+            endAngle = points[0].thetaTo(points[points.length-1])+Math.PI;
+            console.log(angle*180/Math.PI,endAngle*180/Math.PI);
             visPolygon = pointsPolygon.visibleFrom(visFromPoint);
         }
     } else if (mode == "animateVisPolygon") {
         pointsPolygon.draw(context);
         visFromPoint.draw(context);
         if (visPolygon) { 
-            if (angle<Math.PI*2+1.5708) {
+            if (angle<endAngle) {
                 angle += 0.02;
             } else {
                 angle = Math.PI*2+1.5708;
+                mode = "highlightSteinerPoints"
+                tweenPercent = 0;
             }
             // visPolygon.draw(context);
             movingRay = new Ray(visFromPoint,angle);
@@ -478,6 +533,89 @@ function update () {
                 sweepPolygon.draw(context,"rgba(0,255,0,0.6)");
             }
         }
+    } else if (mode == "highlightSteinerPoints") {
+        pointsPolygon.draw(context);
+        visFromPoint.draw(context);
+        visPolygon.draw(context,"rgba(0,255,0,0.6)");
+        steinerPoints = []
+        visPolygon.points().filter(function (p) {return p.isSteiner}).map(
+                function (p) {steinerPoints.push(p);
+                              p.draw(context,
+                                     "rgba(255,0,0,"+tweenPercent/100+")")});
+        
+        tweenPercent += 2;
+        if (tweenPercent > 200) {
+            mode = "computeGeodesics";
+            steinerEdges = pointsPolygon.edges().filter(function (e) {
+                for (i=0;i<steinerPoints.length;i++) {
+                    if (e.containsPoint(steinerPoints[i])) return true;
+                }
+                return false;
+            })
+            visPoints = visPolygon.points();
+            visLength = visPoints.length;
+            windows = []
+            tweenPercent = 0;
+            steinerPoints.map(function (p) {
+                index = visPoints.indexOf(p);
+                steinerEdge = pointsPolygon.edges().filter(function (e) {
+                    return e.containsPoint(p);
+                })[0];
+                if (steinerEdge.containsPoint(visPoints[(index-1+visLength)%visLength])) {
+                    windows.push([visPoints[(index+1)%visLength],p,steinerEdge.p2,steinerEdge.p1]);
+                } else {
+                    windows.push([visPoints[(index-1+visLength)%visLength],p,steinerEdge.p1,steinerEdge.p2]);
+                }
+            })
+        }
+    } else if (mode == "computeGeodesics") {
+        tweenPercent += 2
+        if (tweenPercent > 100) {
+            tweenPercent = 100;
+        }
+        pointsPolygon.draw(context);
+        visFromPoint.draw(context);
+        visPolygon.draw(context,"rgba(0,255,0,0.6)");
+        geodesics = windows.map (function (w) {
+            points = pointsPolygon.points();
+            i1 = points.indexOf(w[0]);
+            i2 = points.indexOf(w[2]);
+            stack = [w[0]];
+            rht = w[0].rightTurn(w[1],w[2]);
+            ord = rht ? -1 : 1;
+            for (i=i1;i!=(i2+ord+points.length)%points.length;i = (i+ord+points.length)%points.length) {
+                if (stack.length<2) {
+                    stack.push(points[i]);
+                } else {
+                    while (stack.length>= 2 && 
+                           stack[stack.length-2].rightTurn(stack[stack.length-1],
+                                                           points[i]) != rht) {
+                        stack.pop();
+                    }
+                    stack.push(points[i]);
+                }
+            }
+            // stack.push(w[2]);
+            return stack;
+        });
+        geodesics.map(function (pl, idx) {
+             (new Polygon(pl.concat(windows[idx][1]))).draw(context,"rgba(0,255,255,"+tweenPercent/100*0.6+")",
+                                                                    "rgba(0,0,0,"+tweenPercent/100+")");
+            if (pl.length>2) {
+                for (i=0;i<pl.length-1;i++) {
+                    ls = new LineSegment(pl[i],pl[i+1]);
+                    l = ls.toLine();
+                    e = new LineSegment(windows[idx][1],windows[idx][2]);
+                    inter = e.lineIntersection(l);
+                    if (inter) {
+                        context.dashedLine(pl[i].x,600-pl[i].y,inter.x,600-inter.y);
+                        context.strokeStyle= "rgba(0,0,0,"+tweenPercent/100+")";
+                        context.stroke();
+                    }
+                }
+            }
+        })
+
     }
     /*var seg1 = new LineSegment(new Point(200, 200), new Point(x, 600-y));
     seg1.draw(context);
