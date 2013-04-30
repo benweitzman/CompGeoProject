@@ -562,9 +562,9 @@ function update () {
                     return e.containsPoint(p);
                 })[0];
                 if (steinerEdge.containsPoint(visPoints[(index-1+visLength)%visLength])) {
-                    windows.push([visPoints[(index+1)%visLength],p,steinerEdge.p2]);
+                    windows.push([visPoints[(index+1)%visLength],p,steinerEdge.p2,steinerEdge.p1]);
                 } else {
-                    windows.push([visPoints[(index-1+visLength)%visLength],p,steinerEdge.p1]);
+                    windows.push([visPoints[(index-1+visLength)%visLength],p,steinerEdge.p1,steinerEdge.p2]);
                 }
             })
         }
