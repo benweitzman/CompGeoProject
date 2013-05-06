@@ -2,9 +2,41 @@
 
 <html>
     <head>
+        <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css" rel="stylesheet">
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
         <script type="text/javascript" src="main.js"></script>
     </head> 
     <body>
-        <canvas id="canvas" width="600" height="600" />
+        <div class="container">
+            <h3 style="text-align:center">Triangulation of a Star-shaped Polygon in Linear Time Without Knowledge of Kernel</h3>
+            <h4 style="text-align:center">By Ben Weitzman</h4>
+            <div class="row">
+                <div class="span6">
+                    <div class="thumbnail">
+                        <canvas id="canvas" width="100%" height="500" style="border:1px solid #ddd"></canvas>
+                        <div class="caption" style="text-align:center">
+                                <div id="hasntStarted">
+                                    <button class="btn" id="addPoints">Add Points</button>
+                                    <button class="btn" id="generatePoints">Generate Random Points</button>
+                                </div>
+                                <div id="hasStarted" style="display:none">
+                                    <button class="btn" id="next">Next</button>
+                                    <button class="btn" id="restart">Restart</button>
+                                    <button class="btn" id="restartWithPoints">Restart With Same Points</button>
+                                </div>
+                                <div id="addPointsButtons" style="display:none">
+                                    <button class="btn" id="back">Back</button>
+                                    <button class="btn" id="restartPoints">Restart</button>
+                                    <button class="btn" id="undo">Undo</button>
+                                    <button class="btn" id="begin">Begin</button>   
+                                </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="span6">
+                    Text goes here
+                </div>
+            </row>       
+        </div>
     </body>
 </html> 
