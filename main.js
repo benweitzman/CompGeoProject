@@ -26,7 +26,8 @@ if (CP.lineTo) {
   // ...then set the internal size to match
   canvas.width  = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
-}var di = 0, draw = true;
+}
+var di = 0, draw = true;
         x = 0;
 
 
@@ -74,21 +75,23 @@ function Point (x, y) {
     }
 
     this.leftTurn = function (p2, p3) {
-        var v1 = p2.subtract(this);
-        var v2 = p3.subtract(p2);
-        if (v1.cross(v2) < 0) {
-            return true;
-        }
-        return false;
+        return (p2.x-this.x)*(p3.y-this.y)-(p2.y-this.y)*(p3.x-this.x) > 0
+        // var v1 = p2.subtract(this);
+        // var v2 = p3.subtract(p2);
+        // if (v1.cross(v2) < 0) {
+        //     return true;
+        // }
+        // return false;
     };
 
     this.rightTurn = function (p2, p3) {
-        var v1 = p2.subtract(this);
-        var v2 = p3.subtract(p2);
-        if (v1.cross(v2) > 0) {
-            return true;
-        }
-        return false;
+        return (p2.x-this.x)*(p3.y-this.y)-(p2.y-this.y)*(p3.x-this.x) > 0
+        // var v1 = p2.subtract(this);
+        // var v2 = p3.subtract(p2);
+        // if (v1.cross(v2) > 0) {
+        //     return true;
+        // }
+        // return false;
     };
 
     this.draw = function (context,fillStyle) {
@@ -101,13 +104,22 @@ function Point (x, y) {
 
     this.canSee = function (p,pgon) {
         s = new LineSegment(this,p).scale(0.99).reverse().scale(0.99).reverse();
+        mid = s.midpoint();
         intersections = s.polygonIntersections(pgon);
-        if (intersections.length == 0) return true;
+        if (intersections.length == 0) {
+            if (pgon.containsPoint(mid)) {
+                return true;
+            } else {
+                return false;
+            }
+        };
         intersections.sort(function (p1, p2) {
             return p1.distance(this)-p2.distance(this);
         });
         if (intersections[0].distance(p) < 0.005) {
-            return true;
+            if (pgon.containsPoint(mid)) {
+                return true;
+            }
         }
         return false;
     }
@@ -163,6 +175,10 @@ function Ray(p,theta) {
 function LineSegment (p1, p2) {
     this.p1 = p1;
     this.p2 = p2;
+
+    this.midpoint = function () {
+        return new Point((this.p1.x+this.p2.x)/2, (this.p1.y+this.p2.y)/2);
+    }
 
     this.scale = function (factor) {
         dx = this.p2.x-this.p1.x;
@@ -411,20 +427,36 @@ window.addEventListener('load', function() {
             $("#hasStarted").fadeIn();
             $("#next").attr("disabled","");
         });
+        $("#toBegin").fadeOut(function () {
+            $("#start").fadeIn();
+        })
     });
     $("#restartWithPoints").on('click', function () {
         mode = "fadeToPolygon"
         tweenPercent = 0;
+        $("#info").children(":gt(1)").not("#start").fadeOut(function () {
+            if (!$("#start").is(":visible")) {
+                $("#start").fadeIn();
+            }
+        });
     });
     $("#restart").on('click', function () {
         mode = "hasntStarted";
         $("#hasStarted").fadeOut(function () {
             $("#hasntStarted").fadeIn();
         });
+        $("#info").children(":gt(1)").not("#toBegin").fadeOut(function () {
+            if (!$("#toBegin").is(":visible")) {
+                $("#toBegin").fadeIn();
+            }
+        })
     })
     $("#addPoints").on('click', function () {
         $("#hasntStarted").fadeOut(function () {
             $("#addPointsButtons").fadeIn();
+        });
+        $("#toBegin").fadeOut(function () {
+            $("#addInstructions").fadeIn();
         });
         $("#undo").attr("disabled","");
         $("#begin").attr("disabled","");
@@ -435,6 +467,9 @@ window.addEventListener('load', function() {
         mode = "hasntStarted";
         $("#addPointsButtons").fadeOut(function () {
             $("#hasntStarted").fadeIn();
+        });
+        $("#addInstructions").fadeOut(function () {
+            $("#toBegin").fadeIn();
         });
     });
     $("#undo").on('click', function () {
@@ -452,6 +487,9 @@ window.addEventListener('load', function() {
         tweenPercent = 0;
         $("#addPointsButtons").fadeOut(function () {
             $("#hasStarted").fadeIn();
+        });
+        $("#addInstructions").fadeOut(function () {
+            $("#start").fadeIn();
         });
     });
 }, false);
@@ -596,6 +634,9 @@ function update () {
                 console.log(angle*180/Math.PI,endAngle*180/Math.PI);
                 visPolygon = pointsPolygon.visibleFrom(visFromPoint);
                 $("#next").attr("disabled","");
+                $("#start").fadeOut(function () {
+                    $("#computeVis").fadeIn();
+                });
             });
         }
     } else if (mode == "animateVisPolygon") {
@@ -609,6 +650,9 @@ function update () {
                     mode = "highlightSteinerPoints"
                     tweenPercent = 0;
                     $("#next").attr("disabled","");
+                    $("#computeVis").fadeOut(function () {
+                        $("#steinerPoints").fadeIn();
+                    });
                 });
             }
             // visPolygon.draw(context);
@@ -652,7 +696,7 @@ function update () {
         visPolygon.points().filter(function (p) {return p.isSteiner}).map(
                 function (p) {steinerPoints.push(p);
                               p.draw(context,
-                                     "rgba(255,0,0,"+tweenPercent/100+")")});
+                                     "rgba(0,0,255,"+tweenPercent/100+")")});
         
         tweenPercent += 2;
         visFromPoint.draw(context);
@@ -681,7 +725,10 @@ function update () {
                         windows.push([visPoints[(index-1+visLength)%visLength],p,steinerEdge.p1,steinerEdge.p2]);
                     }
                 })
-            $("#next").attr("disabled","");
+                $("#next").attr("disabled","");
+                $("#steinerPoints").fadeOut(function () {
+                    $("#extendedVis").fadeIn();
+                });
             });
         }
     } else if (mode == "computeGeodesics") {
@@ -779,10 +826,12 @@ function update () {
                 }
                 subStarPolygon = new Polygon(subStarPoints);
                 $("#next").attr("disabled","");
+                $("#extendedVis").fadeOut(function () {
+                    $("#constructEdges").fadeIn();
+                });
             });
         }
     } else if (mode == "connectVertices") {
-        
         pointsPolygon.draw(context);
         visPolygon.draw(context,"rgba(0,255,0,0.6)");
         geodesics.map(function (pl, idx) {
@@ -812,6 +861,9 @@ function update () {
                 tweenPercent = 0;
                 mode = "showSubPolygons";
                 $("#next").attr("disabled","");
+                $("#constructEdges").fadeOut(function () {
+                    $("#highlightSubPolygons").fadeIn();
+                })
             });
         }
     } else if (mode == "showSubPolygons") {
@@ -848,6 +900,9 @@ function update () {
                 mode = "blowUpPolygons";
                 tweenPercent = 0;
                 $("#next").attr("disabled","");
+                $("#highlightSubPolygons").fadeOut(function () {
+                    $("#blowUp").fadeIn();
+                })
             });
         }
     } else if (mode == "blowUpPolygons") {
@@ -874,6 +929,9 @@ function update () {
                 tweenPercent = 0;
                 mode = "triangulateStarShaped";
                 $("#next").attr("disabled","");
+                $("#blowUp").fadeOut(function () {
+                    $("#triangulateStar").fadeIn();
+                });
             });
         }
     } else if (mode == "triangulateStarShaped") {
@@ -887,6 +945,154 @@ function update () {
         }
         visFromPoint.draw(context);
         tweenPercent += 2
+        if (tweenPercent > 100) {
+            tweenPercent = 100;
+            $("#next").removeAttr("disabled").off('click').on('click', function () {
+                tweenPercent = 0;
+                mode = "triangulateWEV";
+                $("#next").attr("disabled","");
+                $("#triangulateStar").fadeOut(function () {
+                    $("#triangulateWEV").fadeIn();
+                });
+            });
+        }
+    } else if (mode == "triangulateWEV") {
+        subStarPolygon.draw(context,"rgba(0,255,0,0.6)",
+                                    "rgba(0,0,0,1)");
+        blownUpPolygons.map(function (bup) {
+            bup.draw(context,"rgba(0,0,255,0.6)");
+        });
+        visFromPoint.draw(context);
+        blownUpPolygons.map(function (bup) {
+            points = bup.pointList.slice();
+            minXPoint = undefined
+            for (i=0;i<points.length;i++) {
+                if (minXPoint == undefined || points[i].x < minXPoint) {
+                    minXPoint = points[i];
+                }
+            }
+            i0 = points.indexOf(minXPoint);
+            i1 = (i0+1)%points.length;
+            i2 = (i1+1)%points.length;
+            while (points.length > 3) {
+                p0 = points[i0];
+                p1 = points[i1];
+                p2 = points[i2];
+                if (p0.rightTurn(p1, p2)) {
+                    new LineSegment(p0, p2).draw(context, "rgba(0,0,0,"+tweenPercent/100+")");
+                    points = points.slice(0, i1).concat(points.slice(i1+1))
+                    i0 = points.indexOf(p0);
+                    i1 = points.indexOf(p2);
+                    i2 = (i1+1)%points.length;
+                } else {
+                    i0 = (i0+1)%points.length;
+                    i1 = (i1+1)%points.length;
+                    i2 = (i2+1)%points.length;
+                }
+            }
+        });
+        for (i=2;i<subStarPolygon.points().length-1;i++) {
+            new LineSegment(visFromPoint,subStarPolygon.points()[i]).draw(context);
+        }
+        tweenPercent += 2
+        if (tweenPercent > 100) {
+            tweenPercent = 100;
+            $("#next").removeAttr("disabled").off('click').on('click', function () {
+                tweenPercent = 0;
+                mode = "assembleBUP";
+                $("#next").attr("disabled","");
+                $("#triangulateWEV").fadeOut(function () {
+                    $("#assemble").fadeIn();
+                })
+            });
+        }
+    } else if (mode == "assembleBUP") {
+        subStarPolygon.draw(context,"rgba(0,255,0,0.6)",
+                                    "rgba(0,0,0,1)");
+        blownUpPolygons = subPolygons.map(function (sp) {
+            polygonAvg = sp.points().reduce(function (a, b) {
+                return a.add(b)
+            }).scalarMult(1/sp.points().length);
+            vect = polygonAvg.subtract(kernelPoint);
+            blownUpPoints = sp.map(function (pt) {
+                return pt.add(vect.scalarMult((100-tweenPercent)/100*0.1));
+            });
+            return new Polygon(blownUpPoints);
+        });
+        blownUpPolygons.map(function (bup) {
+            bup.draw(context,"rgba(0,0,255,0.6)");
+        });
+        blownUpPolygons.map(function (bup) {
+            points = bup.pointList.slice();
+            i0 = 0;
+            i1 = 1;
+            i2 = 2;
+            while (points.length > 3) {
+                p0 = points[i0];
+                p1 = points[i1];
+                p2 = points[i2];
+                if (p0.rightTurn(p1, p2)) {
+                    new LineSegment(p0, p2).draw(context);
+                    points = points.slice(0, i1).concat(points.slice(i1+1))
+                    i0 = points.indexOf(p0);
+                    i1 = points.indexOf(p2);
+                    i2 = (i1+1)%points.length;
+                } else {
+                    i0 = (i0+1)%points.length;
+                    i1 = (i1+1)%points.length;
+                    i2 = (i2+1)%points.length;
+                }
+            }
+        });
+        for (i=2;i<subStarPolygon.points().length-1;i++) {
+            new LineSegment(visFromPoint,subStarPolygon.points()[i]).draw(context);
+        }
+        visFromPoint.draw(context);
+        tweenPercent += 2
+        if (tweenPercent > 100) {
+            tweenPercent = 100;
+            $("#next").removeAttr("disabled").off('click').on('click', function () {
+                tweenPercent = 0;
+                mode = "finish";
+                $("#next").attr("disabled","");
+                $("#assemble").fadeOut(function () {
+                    $("#finish").fadeIn();
+                })
+            });
+        }
+    } else if (mode == "finish") {
+        subStarPolygon.draw(context,"rgba(0,255,0,0.6)",
+                                    "rgba(0,0,0,1)");
+        subPolygons.map(function (bup) {
+            bup.draw(context,"rgba(0,"+Math.floor(255*tweenPercent/100)+","+Math.floor(255*(100-tweenPercent)/100)+",0.6)");
+        });
+        subPolygons.map(function (bup) {
+            points = bup.pointList.slice();
+            i0 = 0;
+            i1 = 1;
+            i2 = 2;
+            while (points.length > 3) {
+                p0 = points[i0];
+                p1 = points[i1];
+                p2 = points[i2];
+                if (p0.rightTurn(p1, p2)) {
+                    new LineSegment(p0, p2).draw(context);
+                    points = points.slice(0, i1).concat(points.slice(i1+1))
+                    i0 = points.indexOf(p0);
+                    i1 = points.indexOf(p2);
+                    i2 = (i1+1)%points.length;
+                } else {
+                    i0 = (i0+1)%points.length;
+                    i1 = (i1+1)%points.length;
+                    i2 = (i2+1)%points.length;
+                }
+            }
+        });
+        for (i=2;i<subStarPolygon.points().length-1;i++) {
+            new LineSegment(visFromPoint,subStarPolygon.points()[i]).draw(context);
+        }
+        visFromPoint.draw(context,"rgba(255,0,0,"+(100-tweenPercent)/100);
+        tweenPercent += 2;  
         if (tweenPercent > 100) {
             tweenPercent = 100;
         }

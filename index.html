@@ -33,8 +33,130 @@
                         </div>
                     </div>
                 </div>
-                <div class="span6">
-                    Text goes here
+                <div class="span6" style="">
+                    <div style="padding:20px;" id="info">
+                        <div>
+                            <h4>About</h4>
+                            <p>
+                            Star shaped polygons have the property that there 
+                            exists some point, called the kernel, within the 
+                            polygon such that a line segment from the kernel to 
+                            any point on the boundary of the polygon is 
+                            completely contained within the polygon. If the 
+                            kernel of a star shaped polygon is known, the shape 
+                            can be triangulated in a fairly straightforward 
+                            fashion. A demonstration of how to trangulate a star
+                            shaped polygon with known kernel in linear time can be found 
+                             <a href="http://www.eecs.tufts.edu/~mgolds07/triangulate/">
+                                here
+                            </a>. This is a demonstration of how to triangulate 
+                            a star shaped polygon in linear time <em>without</em>
+                            knowledge of the kernel.
+                            </p>
+                            <h4>What's Going On</h4>
+                        </div>
+                        <div id="toBegin">
+                            <p>
+                                To begin select "Add points" on the left to create
+                                a star shaped polygon or "Generate random points" to have
+                                one automatically generated
+                            </p>
+                        </div>
+                        <div style="display:none" id="addInstructions">
+                           <p> First, click to add the kernel (this won't be used in
+                               the triangulation). It will be shown in red. Then,
+                               click to add points. The points will be automatically
+                               connected to form a star shape polygon around the kernel.
+                               The points may not be connected in the order that you add
+                               them. When you are satisfied with your polygon, click begin.
+                           </p>
+                        </div>
+                        <div style="display:none" id="start">
+                            <p>We start with our star shaped polygon</p>
+                        </div>
+                        <div style="display:none" id="computeVis">
+                          <p> A random vertex of the polygon is selected. In this implementation,
+                              the random vertex is always the point with the maximum x coordinate.
+                              From this point, the <a href="http://en.wikipedia.org/wiki/Visibility_polygon">
+                              visibility polygon</a> is calculated. By definition, 
+                              this visibility polygon is star-shaped, with a kernel at the selected point.</p>
+                        </div>
+                        <div style="display:none" id="steinerPoints">
+                            <p>
+                                However, this subpolygon contains Steiner points (shown in blue),
+                                which aren't part of the original polygon.
+                            </p>
+                        </div>
+                        <div style="display:none" id="extendedVis">
+                            <p>
+                                So we compute the extended visibility polygon by
+                                sweeping the Steiner points away from the visibility
+                                polygon and towards vertices of the original polygon.
+                            </p>
+                        </div>
+                        <div style="display:none" id="constructEdges">
+                            <p>
+                                But now the subpolygon (i.e. the extended visibility
+                                polygon) is no longer star shaped.
+                            </p>
+                            <p>
+                                So we construct a subpolygon of the extended visibility
+                                polygon which has no Steiner points.
+                            </p>
+                        </div>
+                        <div style="display:none" id="highlightSubPolygons">
+                            <p>
+                                This leaves us with several subpolygons: 
+                                <ul>
+                                    <li>
+                                        one star star shaped polygon whose kernel
+                                        is known (and is a vertex). The kernal of
+                                        the original polygon must be contained in
+                                        this subpolygon.
+                                    </li>
+                                    <li>
+                                        several good subpolygons (i.e. polygons 
+                                        that are cut from the original polygon by
+                                        one edge). These polygons are all weakly
+                                        externally visible (WEV) across the cut 
+                                        edge because they do not contain the kernel,
+                                        and all of points on the boundary are
+                                        able to see the kernel.
+                                    </li>
+                                </ul>
+                            </p>
+                        </div>
+                        <div style="display:none" id="blowUp">
+                            <p>
+                                These subpolygons can now be triangulated individually,
+                                each in linear time.
+                            </p>
+                        </div>
+                        <div style="display:none" id="triangulateStar">
+                            <p>
+                                The star shaped subpolygon can be trivially triangulated
+                                by connected its kernel to every vertex.
+                            </p> 
+                        </div>
+                        <div style="display:none" id="triangulateWEV">
+                            <p>
+                                The other subpolygons can be triangulated in linear
+                                time using the <a href="http://cgm.cs.mcgill.ca/~beezer/cs507/main.html">
+                                3 coins algorirthm</a> because they are WEV.
+                            </p>
+                        </div>
+                        <div style="display:none" id="assemble">
+                            <p>
+                                Once all the subpolygons are triangulated, the entire
+                                polygon is triangulated.
+                            </p>
+                        </div>
+                        <div style="display:none" id="finish">
+                            <p>
+                                Our star shaped polygon has been triangulated in linear time without knowing where the kernel is.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </row>       
         </div>
