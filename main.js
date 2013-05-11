@@ -104,6 +104,12 @@ function Point (x, y) {
 
     this.canSee = function (p,pgon) {
         s = new LineSegment(this,p).scale(0.99).reverse().scale(0.99).reverse();
+        self = this;
+        if (pgon.edges().filter(function (edge) {
+            return edge.equals(new LineSegment(self, p));
+        }).length > 0) {
+            return true;
+        }
         mid = s.midpoint();
         intersections = s.polygonIntersections(pgon);
         if (intersections.length == 0) {
@@ -186,6 +192,13 @@ function LineSegment (p1, p2) {
         return new LineSegment(p1, new Point(p1.x + dx * factor,
                                              p1.y + dy * factor));
     }
+
+    this.equals = function (ls) {
+        return (Math.abs(this.p1.x-ls.p1.x)+Math.abs(this.p1.y-ls.p1.y) < 0.5 &&
+                Math.abs(this.p2.x-ls.p2.x)+Math.abs(this.p2.y-ls.p2.y) < 0.5) ||
+               (Math.abs(this.p1.x-ls.p2.x)+Math.abs(this.p1.y-ls.p2.y) < 0.5 &&
+                Math.abs(this.p2.x-ls.p1.x)+Math.abs(this.p2.y-ls.p1.y) < 0.5)    
+        }
 
     this.reverse = function () {
         return new LineSegment(this.p2, this.p1);
@@ -400,7 +413,7 @@ window.addEventListener('load', function() {
     }
     canvas.addEventListener('mousedown', mouseDown, false);
     window.addEventListener('keypress',keyPress,false);
-    window.setInterval(update,1000/50);
+    interval = window.setInterval(update,1000/50);
     $("#generatePoints").on('click', function () {
         randomPoints = []
         randomPointTargets = []
@@ -658,7 +671,7 @@ function update () {
             // visPolygon.draw(context);
             movingRay = new Ray(visFromPoint,angle);
             movingRayIntersection = movingRay.polygonIntersections(visPolygon)[0];
-            new LineSegment(visFromPoint,movingRayIntersection).draw(context);
+            new LineSegment(visFromPoint, movingRayIntersection).draw(context);
             stableRay = new Ray(visFromPoint,1.5708)
             stableRayIntersection = stableRay.polygonIntersections(visPolygon)[0];
             new LineSegment(visFromPoint,stableRayIntersection).draw(context);
@@ -735,6 +748,7 @@ function update () {
         tweenPercent += 2
         pointsPolygon.draw(context);
         visPolygon.draw(context,"rgba(0,255,0,0.6)");
+        type1Polygons = [];
         geodesics = windows.map (function (w) {
             points = pointsPolygon.points();
             i1 = points.indexOf(w[0]);
@@ -754,7 +768,25 @@ function update () {
                     stack.push(points[i]);
                 }
             }
-            // stack.push(w[2]);
+            stack = stack.filter(function (x, idx, a) {
+                if (idx == 0) return true;
+                return !(Math.abs(a[idx-1].x-x.x) < 0.1 && Math.abs(a[idx-1].y-x.y) < 0.1);
+            });
+            for (i=0;i<stack.length-1;i++) {
+                p1 = stack[i];
+                p2 = stack[i+1];
+                i1 = points.indexOf(p1);
+                i2 = points.indexOf(p2);
+                if (Math.abs(i1-i2) != 1) {
+                    gs = [];
+                    for (j=Math.min(i1,i2);j<=Math.max(i1,i2);j++) {
+                        gs.push(points[j]);
+                    }
+                    //if (ord == 1) gs.reverse();
+                    type1Polygons.push(new Polygon(gs));
+
+                }
+            }
             return stack;
         });
         geodesics.map(function (pl, idx) {
@@ -783,6 +815,8 @@ function update () {
                 subStarPoints = [maxXPoint];
                 pl = pointsPolygon.pointList;
                 subPolygons = [];
+                type2Polygons = [];
+                type3Polygons = [];
                 windows.map (function (w, idx, r) {
                     pointsToAdd = undefined;
                     v = w[0];
@@ -792,13 +826,22 @@ function update () {
                     ord = rht ? -1 : 1;
                     if (maxXPoint.canSee(y, pointsPolygon)) {
                         if (ord == 1) {
-                            pointsToAdd = [v, y]
+                            pointsToAdd = [v, y];
+                            type2Polygons.push(new Polygon(([v,y].concat(geodesics[idx].slice(1).reverse()
+                            )).reverse()));
                         } else {
                             pointsToAdd = [y, v];
+                            type2Polygons.push(new Polygon([v,y].concat(geodesics[idx].slice(1).reverse()
+                            )));
                         }
                     } else {
                         if (ord == 1) {
                             pointsToAdd = [v, r[(idx+1)%r.length][0]];
+                            type3Polygons.push(new Polygon([v, r[(idx+1)%r.length][0]].concat(
+                                geodesics[(idx+1)%r.length].slice(1)
+                            ).concat(
+                                geodesics[idx].slice(1).reverse()
+                            ).reverse()));
                         } 
                     }
                     if (pointsToAdd != undefined) {
@@ -888,58 +931,52 @@ function update () {
         });
         subStarPolygon.draw(context,"rgba(0,255,0,0.6)",
                                      "rgba(0,0,0,1)");
-        subPolygons.map(function (sp) {
-            sp.draw(context,"rgba(0,0,255,"+tweenPercent/100*0.6+")",
-                            "rgba(0,0,0,"+tweenPercent/100+")");
-        });
+        type1Polygons.map(function (x) {
+            x.draw(context,"rgba(255,0,0,"+tweenPercent/100*0.6+")");
+        })
+        type2Polygons.map(function (x) {
+            x.draw(context,"rgba(175,0,255,"+tweenPercent/100*0.6+")");
+        })
+        type3Polygons.map(function (x) {
+            x.draw(context,"rgba(255,165,0,"+tweenPercent/100*0.6+")");
+        })
         visFromPoint.draw(context);
-        tweenPercent += 2
-        if (tweenPercent > 100) {
-            tweenPercent = 100;
+        if (tweenPercent == 100) {
+            tweenPercent = 101;
             $("#next").removeAttr("disabled").off('click').on('click', function () {
-                mode = "blowUpPolygons";
-                tweenPercent = 0;
+                //mode = "blowUpPolygons";
+                //tweenPercent = 0;
                 $("#next").attr("disabled","");
                 $("#highlightSubPolygons").fadeOut(function () {
                     $("#blowUp").fadeIn();
-                })
-            });
-        }
-    } else if (mode == "blowUpPolygons") {
-        subStarPolygon.draw(context,"rgba(0,255,0,0.6)",
-                                    "rgba(0,0,0,1)");
-        blownUpPolygons = subPolygons.map(function (sp) {
-            polygonAvg = sp.points().reduce(function (a, b) {
-                return a.add(b)
-            }).scalarMult(1/sp.points().length);
-            vect = polygonAvg.subtract(kernelPoint);
-            blownUpPoints = sp.map(function (pt) {
-                return pt.add(vect.scalarMult(tweenPercent/100*0.1));
-            });
-            return new Polygon(blownUpPoints);
-        });
-        blownUpPolygons.map(function (bup) {
-            bup.draw(context,"rgba(0,0,255,0.6)");
-        });
-        visFromPoint.draw(context);
-        tweenPercent += 2
-        if (tweenPercent > 100) {
-            tweenPercent = 100;
-            $("#next").removeAttr("disabled").off('click').on('click', function () {
-                tweenPercent = 0;
-                mode = "triangulateStarShaped";
-                $("#next").attr("disabled","");
-                $("#blowUp").fadeOut(function () {
-                    $("#triangulateStar").fadeIn();
+                    console.log("arbd");
+                    $("#next").removeAttr("disabled").off('click').on('click', function () {
+                        mode = "triangulateStarShaped";
+                        tweenPercent = 0;
+                        $("#blowUp").fadeOut(function () {
+                             $("#triangulateStar").fadeIn();
+                        });
+                        $("#next").attr("disabled","");
+                    });
                 });
             });
+        } else if (tweenPercent > 100) {
+            tweenPercent = 101;
+        } else {
+            tweenPercent += 2
         }
     } else if (mode == "triangulateStarShaped") {
         subStarPolygon.draw(context,"rgba(0,255,0,0.6)",
                                     "rgba(0,0,0,1)");
-        blownUpPolygons.map(function (bup) {
-            bup.draw(context,"rgba(0,0,255,0.6)");
-        });
+        type1Polygons.map(function (x) {
+            x.draw(context,"rgba(255,0,0,0.6)");
+        })
+        type2Polygons.map(function (x) {
+            x.draw(context,"rgba(175,0,255,0.6)");
+        })
+        type3Polygons.map(function (x) {
+            x.draw(context,"rgba(255,165,0,0.6)");
+        })
         for (i=2;i<subStarPolygon.points().length-1;i++) {
             new LineSegment(visFromPoint,subStarPolygon.points()[i]).draw(context,"rgba(0,0,0,"+tweenPercent/100+")");
         }
@@ -959,15 +996,23 @@ function update () {
     } else if (mode == "triangulateWEV") {
         subStarPolygon.draw(context,"rgba(0,255,0,0.6)",
                                     "rgba(0,0,0,1)");
-        blownUpPolygons.map(function (bup) {
-            bup.draw(context,"rgba(0,0,255,0.6)");
-        });
+        type1Polygons.map(function (x) {
+            x.draw(context,"rgba(255,0,0,0.6)");
+        })
+        type2Polygons.map(function (x) {
+            x.draw(context,"rgba(175,0,255,0.6)");
+        })
+        type3Polygons.map(function (x) {
+            x.draw(context,"rgba(255,165,0,0.6)");
+        })
         visFromPoint.draw(context);
-        blownUpPolygons.map(function (bup) {
+        // type1Polygons.concat(type2Polygons.concat(type3Polygons));
+        type3Polygons.map(function (bup) {
+            if (bup.points().length <= 3) return;
             points = bup.pointList.slice();
             minXPoint = undefined
             for (i=0;i<points.length;i++) {
-                if (minXPoint == undefined || points[i].x < minXPoint) {
+                if (minXPoint == undefined || points[i].x < minXPoint.x) {
                     minXPoint = points[i];
                 }
             }
@@ -978,7 +1023,7 @@ function update () {
                 p0 = points[i0];
                 p1 = points[i1];
                 p2 = points[i2];
-                if (p0.rightTurn(p1, p2)) {
+                if (p0.rightTurn(p1, p2) && p0.canSee(p2, bup)) {
                     new LineSegment(p0, p2).draw(context, "rgba(0,0,0,"+tweenPercent/100+")");
                     points = points.slice(0, i1).concat(points.slice(i1+1))
                     i0 = points.indexOf(p0);
@@ -991,63 +1036,10 @@ function update () {
                 }
             }
         });
+
         for (i=2;i<subStarPolygon.points().length-1;i++) {
             new LineSegment(visFromPoint,subStarPolygon.points()[i]).draw(context);
         }
-        tweenPercent += 2
-        if (tweenPercent > 100) {
-            tweenPercent = 100;
-            $("#next").removeAttr("disabled").off('click').on('click', function () {
-                tweenPercent = 0;
-                mode = "assembleBUP";
-                $("#next").attr("disabled","");
-                $("#triangulateWEV").fadeOut(function () {
-                    $("#assemble").fadeIn();
-                })
-            });
-        }
-    } else if (mode == "assembleBUP") {
-        subStarPolygon.draw(context,"rgba(0,255,0,0.6)",
-                                    "rgba(0,0,0,1)");
-        blownUpPolygons = subPolygons.map(function (sp) {
-            polygonAvg = sp.points().reduce(function (a, b) {
-                return a.add(b)
-            }).scalarMult(1/sp.points().length);
-            vect = polygonAvg.subtract(kernelPoint);
-            blownUpPoints = sp.map(function (pt) {
-                return pt.add(vect.scalarMult((100-tweenPercent)/100*0.1));
-            });
-            return new Polygon(blownUpPoints);
-        });
-        blownUpPolygons.map(function (bup) {
-            bup.draw(context,"rgba(0,0,255,0.6)");
-        });
-        blownUpPolygons.map(function (bup) {
-            points = bup.pointList.slice();
-            i0 = 0;
-            i1 = 1;
-            i2 = 2;
-            while (points.length > 3) {
-                p0 = points[i0];
-                p1 = points[i1];
-                p2 = points[i2];
-                if (p0.rightTurn(p1, p2)) {
-                    new LineSegment(p0, p2).draw(context);
-                    points = points.slice(0, i1).concat(points.slice(i1+1))
-                    i0 = points.indexOf(p0);
-                    i1 = points.indexOf(p2);
-                    i2 = (i1+1)%points.length;
-                } else {
-                    i0 = (i0+1)%points.length;
-                    i1 = (i1+1)%points.length;
-                    i2 = (i2+1)%points.length;
-                }
-            }
-        });
-        for (i=2;i<subStarPolygon.points().length-1;i++) {
-            new LineSegment(visFromPoint,subStarPolygon.points()[i]).draw(context);
-        }
-        visFromPoint.draw(context);
         tweenPercent += 2
         if (tweenPercent > 100) {
             tweenPercent = 100;
@@ -1055,7 +1047,7 @@ function update () {
                 tweenPercent = 0;
                 mode = "finish";
                 $("#next").attr("disabled","");
-                $("#assemble").fadeOut(function () {
+                $("#triangulateWEV").fadeOut(function () {
                     $("#finish").fadeIn();
                 })
             });
@@ -1063,19 +1055,32 @@ function update () {
     } else if (mode == "finish") {
         subStarPolygon.draw(context,"rgba(0,255,0,0.6)",
                                     "rgba(0,0,0,1)");
-        subPolygons.map(function (bup) {
-            bup.draw(context,"rgba(0,"+Math.floor(255*tweenPercent/100)+","+Math.floor(255*(100-tweenPercent)/100)+",0.6)");
-        });
-        subPolygons.map(function (bup) {
+        type1Polygons.map(function (x) {
+            x.draw(context,"rgba("+Math.floor(255*(100-tweenPercent)/100)+","+Math.floor(255*tweenPercent/100)+",0,0.6)");
+        })
+        type2Polygons.map(function (x) {
+            x.draw(context,"rgba("+Math.floor(175*(100-tweenPercent)/100)+","+Math.floor(255*tweenPercent/100)+","+Math.floor(255*(100-tweenPercent)/100)+",0.6)");
+        })
+        type3Polygons.map(function (x) {
+            x.draw(context,"rgba("+Math.floor(255*(100-tweenPercent)/100)+","+165+Math.floor(90*tweenPercent/100)+",0,0.6)");
+        })
+        type1Polygons.concat(type2Polygons.concat(type3Polygons)).map(function (bup) {
+            if (bup.points().length <= 3) return;
             points = bup.pointList.slice();
-            i0 = 0;
-            i1 = 1;
-            i2 = 2;
+            minXPoint = undefined
+            for (i=0;i<points.length;i++) {
+                if (minXPoint == undefined || points[i].x < minXPoint.x) {
+                    minXPoint = points[i];
+                }
+            }
+            i0 = points.indexOf(minXPoint);
+            i1 = (i0+1)%points.length;
+            i2 = (i1+1)%points.length;
             while (points.length > 3) {
                 p0 = points[i0];
                 p1 = points[i1];
                 p2 = points[i2];
-                if (p0.rightTurn(p1, p2)) {
+                if (p0.rightTurn(p1, p2) && p0.canSee(p2, bup)) {
                     new LineSegment(p0, p2).draw(context);
                     points = points.slice(0, i1).concat(points.slice(i1+1))
                     i0 = points.indexOf(p0);
@@ -1091,7 +1096,7 @@ function update () {
         for (i=2;i<subStarPolygon.points().length-1;i++) {
             new LineSegment(visFromPoint,subStarPolygon.points()[i]).draw(context);
         }
-        visFromPoint.draw(context,"rgba(255,0,0,"+(100-tweenPercent)/100);
+        visFromPoint.draw(context,"rgba(255,0,0,"+(100-tweenPercent)/100+")");
         tweenPercent += 2;  
         if (tweenPercent > 100) {
             tweenPercent = 100;

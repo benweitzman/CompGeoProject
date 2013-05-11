@@ -107,23 +107,35 @@
                         <div style="display:none" id="highlightSubPolygons">
                             <p>
                                 This leaves us with several subpolygons: 
-                                <ul>
-                                    <li>
-                                        one star star shaped polygon whose kernel
-                                        is known (and is a vertex). The kernal of
-                                        the original polygon must be contained in
-                                        this subpolygon.
-                                    </li>
-                                    <li>
-                                        several good subpolygons (i.e. polygons 
-                                        that are cut from the original polygon by
-                                        one edge). These polygons are all weakly
-                                        externally visible (WEV) across the cut 
-                                        edge because they do not contain the kernel,
-                                        and all of points on the boundary are
-                                        able to see the kernel.
-                                    </li>
-                                </ul>
+                                <dl class="dl-horizontal">
+                                    <dt>
+                                        In green
+                                    </dt>
+                                    <dd>
+                                        Star-shaped subpolygon whose kernel
+                                        is known (and is a vertex).
+                                    </dd>
+                                    <dt>
+                                        In red
+                                    </dt>
+                                    <dd>
+                                        Good subpolygon weakly externally visible
+                                        (WEV) across cut edge.
+                                    </dd>
+                                    <dt>
+                                        In purple
+                                    </dt>
+                                    <dd>
+                                        Subpolygons visible from a vertex
+                                    </dd>
+                                    <dt>
+                                        In orange 
+                                    </dt>
+                                    <dd>
+                                        Subpolygon WEV from edge present in original
+                                        polygon
+                                    </dd>
+                                </dl>
                             </p>
                         </div>
                         <div style="display:none" id="blowUp">
