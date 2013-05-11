@@ -1007,7 +1007,7 @@ function update () {
         })
         visFromPoint.draw(context);
         // type1Polygons.concat(type2Polygons.concat(type3Polygons));
-        type3Polygons.map(function (bup) {
+        type1Polygons.concat(type2Polygons.concat(type3Polygons)).map(function (bup) {
             if (bup.points().length <= 3) return;
             points = bup.pointList.slice();
             minXPoint = undefined
